@@ -3,6 +3,7 @@
 - **Họ và tên:** Đoàn Quang Minh
 - **Mã học viên:** [Điền mã học viên của bạn, ví dụ: K4-XXXXX]
 - **Nhóm:** Nhóm RAG Pháp Luật Doanh Nghiệp (K4-L3A)
+- **Vai trò trong nhóm:** **Data Lead** (Chịu trách nhiệm toàn bộ phân hệ Dữ liệu: Task 1, Task 2, Task 3)
 - **Repository/branch:** https://github.com/dcminhcute/K4-L3A-RAG-Pipeline (branch `main`)
 
 ---
@@ -11,57 +12,46 @@
 
 | Module/deliverable | Việc tôi trực tiếp làm | File/commit/PR | Trạng thái |
 |---|---|---|---|
-| **Task 1: Thu thập Legal PDF** | Tìm kiếm, chọn lọc và tải 3 file văn bản quy phạm pháp luật thực tế từ `vanban.chinhphu.vn` (NĐ 359/2026/NĐ-CP về VAMC, NĐ 358/2026/NĐ-CP về DATC, NĐ 357/2026/NĐ-CP về cơ cấu vốn DNNN). | `data/landing/legal/*.pdf` (Commit `6306819`) | Done |
-| **Task 2: Crawl News Articles** | Viết module cào dữ liệu tin tức kèm fallback `urllib`, xử lý giải nén gzip/brotli và UTF-8; cào 5 bài báo pháp luật giải thích NĐ 357, 358, 359. | `src/task2_crawl_news.py`, `data/landing/news/*.json` (Commit `6306819`) | Done |
-| **Task 3: Chuẩn hóa Markdown** | Viết module chuyển đổi MarkItDown/pdfminer, chuẩn hóa metadata header (`source`, `title`, `doc_type`, `url`); tạo 8 file markdown chuẩn. | `src/task3_convert_markdown.py`, `data/standardized/` (Commit `6306819`) | Done |
-| **Task 4: Chunking & Indexing** | Thiết kế bộ chia nhỏ `RecursiveCharacterTextSplitter` (chunk_size=500, overlap=50); embedding OpenAI `text-embedding-3-small` (1536 dim); index 44 chunks vào ChromaDB với cosine distance. | `src/task4_chunking_indexing.py`, `chroma_db/` (Commit `6306819`) | Done |
-| **Task 5 & 6: Dense & Lexical Search** | Cài đặt `semantic_search()` dùng chung hàm embed query; Cài đặt `lexical_search()` dùng `BM25Plus` nạp corpus tự động từ ChromaDB. | `src/task5_semantic_search.py`, `src/task6_lexical_search.py` (Commit `6306819`) | Done |
-| **Task 7: RRF Reranking** | Cài đặt thuật toán Reciprocal Rank Fusion ($k=60$), copy item để giữ nguyên dữ liệu đầu vào, gán nhãn `retrieval_method="hybrid"`. | `src/task7_reranking.py` (Commit `6306819`) | Done |
-| **Task 9: Retrieval Pipeline** | Tích hợp luồng tìm kiếm kết hợp Dense + BM25, cơ chế so khớp ngưỡng fallback an toàn, bảo vệ pipeline không crash khi lỗi dịch vụ. | `src/task9_retrieval_pipeline.py` (Commit `6306819`) | Done |
-| **Task 10: Generation & Citation** | Xây dựng thuật toán `reorder_for_llm` chống hiện tượng *lost-in-the-middle*; định dạng context có Title/Source; cơ chế Safe Refusal từ chối an toàn khi thiếu dữ liệu. | `src/task10_generation.py` (Commit `6306819`) | Done |
-| **Chatbot UI** | Tích hợp toàn bộ pipeline vào Streamlit UI, hiển thị câu trả lời trích dẫn kèm điểm score và expander đối chiếu tài liệu nguồn. | `app.py` (Commit `6306819`) | Done |
+| **Task 1: Thu thập Legal PDF** | Khảo sát, chọn lọc và tải 3 file văn bản quy phạm pháp luật thực tế từ Cổng TTĐT Chính phủ (`vanban.chinhphu.vn`): NĐ 359/2026/NĐ-CP (VAMC), NĐ 358/2026/NĐ-CP (DATC), NĐ 357/2026/NĐ-CP (nguồn thu cơ cấu lại vốn DNNN). Đảm bảo mỗi file > 1024 bytes và đúng định dạng. | `data/landing/legal/*.pdf` (Commit `6306819`) | Done |
+| **Task 2: Crawl News JSON** | Viết module cào dữ liệu tin tức báo chí pháp luật; thiết lập cơ chế giải mã nén `gzip`/`brotli`, chuẩn hóa UTF-8, loại bỏ thẻ HTML thừa; thu thập 5 bài viết phân tích chuyên sâu về 3 Nghị định trên từ Báo Nhân Dân, Báo Đấu Thầu, BNews, VOV. Đảm bảo đúng schema 4 trường bắt buộc (`url`, `title`, `date_crawled`, `content_markdown`). | `src/task2_crawl_news.py`, `data/landing/news/*.json` (Commit `6306819`) | Done |
+| **Task 3: Chuẩn hóa Markdown** | Viết module chuyển đổi Markdown (`convert_legal_docs` và `convert_news_articles`) kèm metadata header (`source`, `title`, `doc_type`, `url`); đảm bảo tính idempotent (chạy lại không tạo file trùng lặp/rỗng), mỗi file đạt trên 200 ký tự. | `src/task3_convert_markdown.py`, `data/standardized/` (Commit `6306819`) | Done |
 
 ---
 
 ## Quyết định kỹ thuật quan trọng
 
-1. **Quyết định:** Sử dụng thuật toán `BM25Plus` thay cho `BM25Okapi` trong module tìm kiếm từ khóa ([`src/task6_lexical_search.py`](file:///d:/K4-L3A-RAG-Pipeline/src/task6_lexical_search.py)).
-   - **Lý do/evidence:** Trên tập dữ liệu nhỏ hoặc các từ khóa xuất hiện ở 50% số văn bản trong corpus, công thức tính IDF của `BM25Okapi` tiêu chuẩn $(\ln\frac{N - n + 0.5}{n + 0.5})$ bị triệt tiêu về $0.0$, khiến kết quả tìm kiếm rỗng và fail contract test. `BM25Plus` bổ sung tham số cận dưới $\delta = 1.0$, đảm bảo mọi chunk có chứa từ khóa đều nhận được điểm số tương quan dương.
-   - **Trade-off:** Phổ điểm tuyệt đối của BM25Plus bị dịch chuyển lên cao hơn, nhưng vì pipeline sử dụng RRF (chỉ dựa vào thứ hạng xếp hạng $rank$) nên không làm sai lệch chất lượng xếp hạng hỗn hợp.
+1. **Quyết định: Xây dựng cơ chế giải nén (`gzip`/`brotli`) và xử lý bảng mã UTF-8 trong crawler Task 2 ([`src/task2_crawl_news.py`](file:///d:/K4-L3A-RAG-Pipeline/src/task2_crawl_news.py)).**
+   - **Lý do/evidence:** Khi gửi request đến các máy chủ báo điện tử lớn (như Báo Nhân Dân, Báo Đấu Thầu), server tự động phản hồi bằng nội dung nén `brotli`/`gzip`. Trình đọc HTTP mặc định không tự giải nén dẫn đến nội dung bài viết bị biến thành chuỗi byte nhị phân chứa đầy ký tự null byte `\x00` (lỗi hiển thị ký tự rác trong file JSON). Tôi đã lập trình tầng xử lý đọc header `Content-Encoding`, tự động giải nén và decode UTF-8 để dữ liệu text luôn sạch, không bị dính ký tự lạ.
+   - **Trade-off:** Tăng thêm độ phức tạp trong code xử lý ngoại lệ mạng và giải mã của crawler, nhưng đảm bảo 100% dữ liệu landing đạt chuẩn chất lượng cho các khâu chunking tiếp theo.
 
-2. **Quyết định:** Xác lập ngưỡng phân tách Fallback `SCORE_THRESHOLD = 0.40` dựa trên thực nghiệm đo khoảng cách giữa In-domain và Out-of-domain.
-   - **Lý do/evidence:** Tôi đã thực hiện chạy đo đạc thực nghiệm với các truy vấn đại diện:
-     - Các câu hỏi đúng chủ đề pháp lý doanh nghiệp (In-domain) cho điểm cosine similarity cao: từ **`0.5208` đến `0.7685`**.
-     - Các câu hỏi ngoài lề (Out-of-domain: thời tiết, nấu ăn, phần mềm) có điểm trần chỉ đạt **`0.2841` đến `0.3176`**.
-     Khoảng cách an toàn giữa 2 nhóm là $[0.32, 0.52]$. Ngưỡng $0.40$ giúp hệ thống tự tin phân loại câu hỏi không đủ cơ sở dữ liệu để kích hoạt Safe Refusal, ngăn chặn triệt để ảo giác thông tin từ LLM.
-   - **Trade-off:** Các câu hỏi trong chủ đề nhưng dùng từ ngữ quá khác biệt hoặc paraphrase quá xa có thể đạt điểm dưới $0.40$ và bị từ chối; đòi hỏi người dùng diễn đạt rõ ràng câu hỏi.
+2. **Quyết định: Lựa chọn 5 bài báo phân tích có chủ đề bám sát và bổ trợ trực tiếp cho 3 văn bản Nghị định, thay vì cào tin tức ngẫu nhiên.**
+   - **Lý do/evidence:** Về mặt kiểm thử kỹ thuật (`test_acceptance.py`), hệ thống chỉ kiểm tra số lượng và schema file JSON mà không kiểm tra ngữ nghĩa. Tuy nhiên, nếu dữ liệu tin tức rời rạc (ví dụ cào tin đời sống, giao thông), khi đưa vào cùng Vector Database sẽ làm loãng kho tri thức, gây nhiễu và làm giảm chỉ số Context Recall / Faithfulness của toàn hệ thống RAG. Việc chọn 5 bài báo phân tích thực tế về VAMC, DATC và cơ chế nộp ngân sách cổ phần hóa tạo thành một corpus đồng nhất: văn bản luật cung cấp điều khoản chính thức, bài viết báo chí cung cấp góc nhìn thực tiễn và giải thích áp dụng.
+   - **Trade-off:** Đòi hỏi nhiều thời gian tra cứu, thẩm định và kiểm tra khả năng crawl của các bài báo tương thích hơn so với việc cào ngẫu nhiên 5 link bất kỳ trên mạng.
 
 ---
 
 ## Kiểm thử và kết quả
 
-- **Test đã chạy:**
-  - `pytest tests/test_contracts.py -q`: Đạt **15/15 passed (100%)**.
-  - `pytest tests/test_acceptance.py -k "test_corpus or test_standardized"`: Đạt **3/3 passed**.
-- **Kết quả truy vấn thực tế:**
-  - Query trong domain (`"VAMC có số vốn điều lệ là bao nhiêu và do ai quản lý?"`): Trả lời chính xác 5.000 tỷ đồng, có trích dẫn `(Document 1)`, `retrieval_source="hybrid"`.
-  - Query ngoài domain (`"Cách làm bánh pizza hải sản tại nhà như thế nào?"`): Trả lời từ chối an toàn, `sources=[]`, `retrieval_source="none"`.
-- **Lỗi đã phát hiện và xử lý:** 
-  - Khắc phục lỗi server báo chí phản hồi nén `brotli/gzip` khiến file JSON bị dính ký tự nhị phân `\x00` (null byte).
-  - Khắc phục lỗi `IndexError` của BM25 trên tập văn bản nhỏ bằng cách áp dụng `BM25Plus`.
+- **Các test chấp nhận (Acceptance Tests) đã pass 100%:**
+  - `pytest tests/test_acceptance.py::test_corpus_has_required_legal_documents`: **PASSED** (đạt 3/3 file PDF hợp lệ, dung lượng từ 5MB - 10MB).
+  - `pytest tests/test_acceptance.py::test_corpus_has_required_news_with_metadata`: **PASSED** (đạt 5/5 file JSON đủ 4 trường `url`, `title`, `date_crawled`, `content_markdown` không rỗng).
+  - `pytest tests/test_acceptance.py::test_standardized_output_covers_both_source_types`: **PASSED** (đạt 8/8 file Markdown chuẩn hóa, mỗi file > 200 ký tự).
+- **Lỗi đã phát hiện và cách xử lý trong khâu dữ liệu:**
+  - *Lỗi 1 (WAF chặn 403 Forbidden):* Một số website cơ quan nhà nước (`moj.gov.vn`) chặn request tự động bằng tường lửa. Tôi đã khảo sát và chuyển hướng sang các nguồn báo chí chính thống mở (`nhandan.vn`, `baodauthau.vn`, `bnews.vn`).
+  - *Lỗi 2 (Ký tự nhị phân do nén stream):* File JSON news bị dính ký tự corrupt; đã viết script xử lý giải nén chuẩn hóa và ghi đè lại toàn bộ dữ liệu sạch.
 
 ---
 
 ## Điều còn hạn chế
 
-- **Hạn chế:** Các tài liệu Nghị định gốc từ Chính phủ là file scan ảnh PDF dạng raster (đóng dấu đỏ), do đó công cụ trích xuất văn bản cơ bản chưa thể đọc trực tiếp các biểu mẫu phụ lục phức tạp nếu không có tầng OCR thị giác.
-- **Thay đổi sẽ làm nếu có thêm thời gian:** Tích hợp mô hình OCR nâng cao (như DocTR hoặc Vision-LLM) để nhận diện cấu trúc biểu mẫu bảng biểu phụ lục trong các văn bản luật hành chính.
+- **Hạn chế:** Các tài liệu Nghị định gốc tải từ Chính phủ là file scan ảnh PDF (dạng raster image có dấu đỏ), các thư viện đọc text thông thường (như `pdfminer`, `pypdf`) không trích xuất trực tiếp được text layer mà cần phải qua bộ OCR hoặc tóm tắt cấu trúc.
+- **Thay đổi sẽ làm nếu có thêm thời gian:** Xây dựng thêm một pipeline OCR tự động (sử dụng PaddleOCR hoặc DocTR) kết hợp phân đoạn tài liệu pháp luật theo cấu trúc phân cấp (Chương -> Điều -> Khoản -> Điểm) để metadata trích xuất chi tiết hơn.
 
 ---
 
 ## Xác nhận đóng góp
 
-Tôi xác nhận nội dung trên phản ánh đúng phần việc của mình và có thể giải thích hoặc chạy lại trong buổi demo.
+Tôi xác nhận nội dung trên phản ánh đúng phần việc Data Lead của mình trong dự án nhóm và có thể giải thích hoặc chạy lại các bước thu thập, chuẩn hóa dữ liệu trong buổi demo.
 
 - **Ngày:** 20/09/2026
 - **Tên thành viên:** Đoàn Quang Minh
